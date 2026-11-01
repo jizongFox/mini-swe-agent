@@ -13,7 +13,8 @@ from minisweagent import Model
 class GlobalModelStats:
     """Global model statistics tracker with optional limits."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize locked counters and load optional process-wide limits from the environment."""
         self._cost = 0.0
         self._n_calls = 0
         self._lock = threading.Lock()
@@ -32,10 +33,12 @@ class GlobalModelStats:
 
     @property
     def cost(self) -> float:
+        """Return accumulated model cost in US dollars."""
         return self._cost
 
     @property
     def n_calls(self) -> int:
+        """Return the number of recorded model calls."""
         return self._n_calls
 
 

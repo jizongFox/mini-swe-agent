@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from typing import Any
 
 import requests
 
@@ -36,12 +37,14 @@ class OpenRouterResponseModel(OpenRouterModel):
     See: https://openrouter.ai/docs/api/reference/responses/overview
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize OpenRouter with the stateless Responses API endpoint."""
         super().__init__(**kwargs)
         self.config = OpenRouterResponseModelConfig(**kwargs)
         self._api_url = "https://openrouter.ai/api/v1/responses"
 
-    def _query(self, messages: list[dict[str, str]], **kwargs):
+    def _query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict[str, Any]:
+        """Send a tool-enabled Responses API request, translating HTTP failures into backend errors."""
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
@@ -82,7 +85,8 @@ class OpenRouterResponseModel(OpenRouterModel):
                 result.append({k: v for k, v in msg.items() if k != "extra"})
         return result
 
-    def query(self, messages: list[dict[str, str]], **kwargs) -> dict:
+    def query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict:
+        """Return response output with parsed actions and cost; retain billed metadata on FormatError."""
         for attempt in retry(logger=logger, abort_exceptions=self.abort_exceptions):
             with attempt:
                 response = self._query(self._prepare_messages_for_api(messages), **kwargs)
@@ -103,13 +107,15 @@ class OpenRouterResponseModel(OpenRouterModel):
         return message
 
     def _parse_actions(self, response: dict) -> list[dict]:
+        """Extract bash calls from response output, raising FormatError for invalid calls."""
         return parse_toolcall_actions_response(
             response.get("output", []),
             format_error_template=self.config.format_error_template,
             template_kwargs={"finish_reason": finish_reason_from_responses_api(response)},
         )
 
-    def format_message(self, **kwargs) -> dict:
+    def format_message(self, **kwargs: Any) -> dict:
+        """Build a Responses API message, wrapping text content and retaining truthy extra metadata."""
         role = kwargs.get("role", "user")
         content = kwargs.get("content", "")
         extra = kwargs.get("extra")

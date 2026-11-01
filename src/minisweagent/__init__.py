@@ -45,17 +45,27 @@ class Model(Protocol):
 
     config: Any
 
-    def query(self, messages: list[dict[str, str]], **kwargs) -> dict: ...
+    def query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict:
+        """Return a model message with parsed actions and accounting metadata."""
+        ...
 
-    def format_message(self, **kwargs) -> dict: ...
+    def format_message(self, **kwargs: Any) -> dict:
+        """Build a provider-compatible message from role, content, and extra fields."""
+        ...
 
     def format_observation_messages(
         self, message: dict, outputs: list[dict], template_vars: dict | None = None
-    ) -> list[dict]: ...
+    ) -> list[dict]:
+        """Render action outputs as provider-compatible observation messages."""
+        ...
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]: ...
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return variables available to prompt and observation templates."""
+        ...
 
-    def serialize(self) -> dict: ...
+    def serialize(self) -> dict:
+        """Return model configuration and metadata for trajectory serialization."""
+        ...
 
 
 class Environment(Protocol):
@@ -63,11 +73,17 @@ class Environment(Protocol):
 
     config: Any
 
-    def execute(self, action: dict, cwd: str = "") -> dict[str, Any]: ...
+    def execute(self, action: dict, cwd: str = "") -> dict[str, Any]:
+        """Execute an action, returning output, returncode, and exception information."""
+        ...
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]: ...
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return environment-specific template variables."""
+        ...
 
-    def serialize(self) -> dict: ...
+    def serialize(self) -> dict:
+        """Return environment configuration for trajectory serialization."""
+        ...
 
 
 class Agent(Protocol):
@@ -75,9 +91,13 @@ class Agent(Protocol):
 
     config: Any
 
-    def run(self, task: str, **kwargs) -> dict: ...
+    def run(self, task: str, **kwargs: Any) -> dict:
+        """Run a task and return terminal metadata, including status and submission."""
+        ...
 
-    def save(self, path: Path | None, *extra_dicts) -> dict: ...
+    def save(self, path: Path | None, *extra_dicts: dict) -> dict:
+        """Merge extra data into a trajectory, optionally write it, and return it."""
+        ...
 
 
 __all__ = [

@@ -1,7 +1,7 @@
 """Utilities for Anthropic API compatibility."""
 
 
-def _is_anthropic_thinking_block(block) -> bool:
+def _is_anthropic_thinking_block(block: object) -> bool:
     """Check if a content block is a thinking-type block."""
     if not isinstance(block, dict):
         return False

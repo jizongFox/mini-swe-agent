@@ -2,6 +2,7 @@
 
 import json
 import time
+from typing import Any
 
 from jinja2 import StrictUndefined, Template
 
@@ -35,14 +36,14 @@ def _format_error_message(error_text: str) -> dict:
     }
 
 
-def _get(obj, key):
+def _get(obj: Any, key: str) -> Any:
     """Read ``key`` from an object or dict (Responses API responses come as either)."""
     if obj is None:
         return None
     return obj.get(key) if isinstance(obj, dict) else getattr(obj, key, None)
 
 
-def finish_reason_from_responses_api(response) -> str | None:
+def finish_reason_from_responses_api(response: Any) -> str | None:
     """Map a Responses API response to a ``finish_reason``-like string for ``format_error_template``.
 
     The Responses API reports a ``max_tokens`` truncation as ``status="incomplete"`` with

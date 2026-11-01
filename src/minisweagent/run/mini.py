@@ -65,6 +65,7 @@ def main(
     exit_immediately: bool = typer.Option(False, "--exit-immediately", help="Exit immediately when the agent wants to finish instead of prompting.", rich_help_panel="Advanced"),
 ) -> Any:
     # fmt: on
+    """Build configured components, prompt for a missing task, run it, and return the agent."""
     configure_if_first_time()
 
     # Build the config from the command line arguments

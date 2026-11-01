@@ -1,4 +1,5 @@
 import random
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -13,19 +14,22 @@ class RouletteModelConfig(BaseModel):
 
 
 class RouletteModel:
-    def __init__(self, *, config_class: type = RouletteModelConfig, **kwargs):
+    def __init__(self, *, config_class: type = RouletteModelConfig, **kwargs: Any) -> None:
         """This "meta"-model randomly selects one of the models at every call"""
         self.config = config_class(**kwargs)
         self.models = [get_model(config=config) for config in self.config.model_kwargs]
         self._n_calls = 0
 
-    def get_template_vars(self, **kwargs) -> dict:
+    def get_template_vars(self, **kwargs: Any) -> dict:
+        """Return wrapper configuration; additional keyword arguments are unused."""
         return self.config.model_dump()
 
     def select_model(self) -> Model:
+        """Choose a configured model uniformly at random; an empty model list raises IndexError."""
         return random.choice(self.models)
 
-    def query(self, *args, **kwargs) -> dict:
+    def query(self, *args: Any, **kwargs: Any) -> dict:
+        """Forward query arguments to the selected model and add its name to the returned message."""
         model = self.select_model()
         self._n_calls += 1
         response = model.query(*args, **kwargs)
@@ -33,6 +37,7 @@ class RouletteModel:
         return response
 
     def serialize(self) -> dict:
+        """Return JSON-mode wrapper configuration and its implementation path."""
         return {
             "info": {
                 "config": {
@@ -52,11 +57,12 @@ class InterleavingModelConfig(BaseModel):
 
 
 class InterleavingModel(RouletteModel):
-    def __init__(self, *, config_class: type = InterleavingModelConfig, **kwargs):
+    def __init__(self, *, config_class: type = InterleavingModelConfig, **kwargs: Any) -> None:
         """This "meta"-model alternates between the models in the sequence for every call"""
         super().__init__(config_class=config_class, **kwargs)
 
     def select_model(self) -> Model:
+        """Select by cyclic call index, optionally mapping that index through the configured sequence."""
         if self.config.sequence is None:
             i_model = self._n_calls % len(self.models)
         else:

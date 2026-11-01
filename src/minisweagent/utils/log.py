@@ -5,6 +5,7 @@ from rich.logging import RichHandler
 
 
 def _setup_root_logger() -> None:
+    """Attach a Rich console handler and enable debug-level logging for minisweagent."""
     logger = logging.getLogger("minisweagent")
     logger.setLevel(logging.DEBUG)
     _handler = RichHandler(
@@ -19,6 +20,7 @@ def _setup_root_logger() -> None:
 
 
 def add_file_handler(path: Path | str, level: int = logging.DEBUG, *, print_path: bool = True) -> None:
+    """Attach a timestamped file handler at the requested level, optionally printing its path."""
     logger = logging.getLogger("minisweagent")
     handler = logging.FileHandler(path)
     handler.setLevel(level)

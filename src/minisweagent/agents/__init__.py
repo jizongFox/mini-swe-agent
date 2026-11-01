@@ -12,6 +12,7 @@ _AGENT_MAPPING = {
 
 
 def get_agent_class(spec: str) -> type[Agent]:
+    """Resolve a registered alias or import path; raise ValueError if resolution fails."""
     full_path = _AGENT_MAPPING.get(spec, spec)
     try:
         module_name, class_name = full_path.rsplit(".", 1)
@@ -23,6 +24,7 @@ def get_agent_class(spec: str) -> type[Agent]:
 
 
 def get_agent(model: Model, env: Environment, config: dict, *, default_type: str = "") -> Agent:
+    """Construct an agent from a copied configuration without mutating the caller's mapping."""
     config = copy.deepcopy(config)
     agent_class = get_agent_class(config.pop("agent_class", default_type))
     return agent_class(model, env, **config)

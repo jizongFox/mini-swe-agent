@@ -1,3 +1,5 @@
+from typing import Any
+
 import litellm
 
 from minisweagent.models.litellm_model import LitellmModel, LitellmModelConfig
@@ -14,10 +16,12 @@ class LitellmTextbasedModelConfig(LitellmModelConfig):
 
 
 class LitellmTextbasedModel(LitellmModel):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize LiteLLM with regex-based action parsing configuration."""
         super().__init__(config_class=LitellmTextbasedModelConfig, **kwargs)
 
-    def _query(self, messages: list[dict[str, str]], **kwargs):
+    def _query(self, messages: list[dict[str, str]], **kwargs: Any) -> Any:
+        """Request a text completion without tools; the response type depends on the provider."""
         try:
             return litellm.completion(
                 model=self.config.model_name, messages=messages, **(self.config.model_kwargs | kwargs)

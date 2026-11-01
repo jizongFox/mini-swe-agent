@@ -65,7 +65,8 @@ class PortkeyModelConfig(BaseModel):
 class PortkeyModel:
     abort_exceptions: list[type[Exception]] = [KeyboardInterrupt, TypeError, ValueError]
 
-    def __init__(self, *, config_class: type = PortkeyModelConfig, **kwargs):
+    def __init__(self, *, config_class: type = PortkeyModelConfig, **kwargs: Any) -> None:
+        """Initialize the Portkey client and cost registry; raise ValueError if the API key is missing."""
         self.config = config_class(**kwargs)
         if self.config.litellm_model_registry and Path(self.config.litellm_model_registry).is_file():
             litellm.utils.register_model(json.loads(Path(self.config.litellm_model_registry).read_text()))
@@ -88,7 +89,8 @@ class PortkeyModel:
 
         self.client = Portkey(**client_kwargs)
 
-    def _query(self, messages: list[dict[str, str]], **kwargs):
+    def _query(self, messages: list[dict[str, str]], **kwargs: Any) -> Any:
+        """Request a tool-enabled completion; the response object is supplied by the Portkey SDK."""
         return self.client.chat.completions.create(
             model=self.config.model_name,
             messages=messages,
@@ -97,11 +99,13 @@ class PortkeyModel:
         )
 
     def _prepare_messages_for_api(self, messages: list[dict]) -> list[dict]:
+        """Strip internal metadata, reorder thinking blocks, and apply configured cache markers."""
         prepared = [{k: v for k, v in msg.items() if k != "extra"} for msg in messages]
         prepared = _reorder_anthropic_thinking_blocks(prepared)
         return set_cache_control(prepared, mode=self.config.set_cache_control)
 
-    def query(self, messages: list[dict[str, str]], **kwargs) -> dict:
+    def query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict:
+        """Return parsed actions and cost metadata; preserve the billed response on FormatError."""
         for attempt in retry(logger=logger, abort_exceptions=self.abort_exceptions):
             with attempt:
                 response = self._query(self._prepare_messages_for_api(messages), **kwargs)
@@ -127,7 +131,7 @@ class PortkeyModel:
         }
         return message
 
-    def _parse_actions(self, response) -> list[dict]:
+    def _parse_actions(self, response: Any) -> list[dict]:
         """Parse tool calls from the response. Raises FormatError if unknown tool."""
         tool_calls = response.choices[0].message.tool_calls or []
         return parse_toolcall_actions(
@@ -136,7 +140,8 @@ class PortkeyModel:
             template_kwargs={"finish_reason": response.choices[0].finish_reason},
         )
 
-    def format_message(self, **kwargs) -> dict:
+    def format_message(self, **kwargs: Any) -> dict:
+        """Expand configured multimodal markers in the supplied message fields."""
         return expand_multimodal_content(kwargs, pattern=self.config.multimodal_regex)
 
     def format_observation_messages(
@@ -152,10 +157,12 @@ class PortkeyModel:
             multimodal_regex=self.config.multimodal_regex,
         )
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return model configuration for templates; additional keyword arguments are unused."""
         return self.config.model_dump()
 
     def serialize(self) -> dict:
+        """Return JSON-mode model configuration and its implementation path."""
         return {
             "info": {
                 "config": {
@@ -165,7 +172,11 @@ class PortkeyModel:
             }
         }
 
-    def _calculate_cost(self, response) -> dict[str, float]:
+    def _calculate_cost(self, response: Any) -> dict[str, float]:
+        """Estimate cost in US dollars from a copied response, reconciling inconsistent token counts.
+
+        Cost calculation failures raise RuntimeError unless cost_tracking ignores errors.
+        """
         response_for_cost_calc = response.model_copy()
         if self.config.litellm_model_name_override:
             if response_for_cost_calc.model:

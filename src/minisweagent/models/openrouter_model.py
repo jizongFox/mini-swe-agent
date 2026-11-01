@@ -55,12 +55,14 @@ class OpenRouterRateLimitError(Exception):
 class OpenRouterModel:
     abort_exceptions: list[type[Exception]] = [OpenRouterAuthenticationError, KeyboardInterrupt]
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
+        """Load OpenRouter settings and the API key from the environment."""
         self.config = OpenRouterModelConfig(**kwargs)
         self._api_url = "https://openrouter.ai/api/v1/chat/completions"
         self._api_key = os.getenv("OPENROUTER_API_KEY", "")
 
-    def _query(self, messages: list[dict[str, str]], **kwargs):
+    def _query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict[str, Any]:
+        """Request a tool-enabled completion, translating HTTP failures into backend errors."""
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
@@ -90,11 +92,13 @@ class OpenRouterModel:
             raise OpenRouterAPIError(f"Request failed: {e}") from e
 
     def _prepare_messages_for_api(self, messages: list[dict]) -> list[dict]:
+        """Strip internal metadata, reorder thinking blocks, and apply configured cache markers."""
         prepared = [{k: v for k, v in msg.items() if k != "extra"} for msg in messages]
         prepared = _reorder_anthropic_thinking_blocks(prepared)
         return set_cache_control(prepared, mode=self.config.set_cache_control)
 
-    def query(self, messages: list[dict[str, str]], **kwargs) -> dict:
+    def query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict:
+        """Return parsed actions and cost metadata; preserve the billed response on FormatError."""
         for attempt in retry(logger=logger, abort_exceptions=self.abort_exceptions):
             with attempt:
                 response = self._query(self._prepare_messages_for_api(messages), **kwargs)
@@ -116,7 +120,8 @@ class OpenRouterModel:
         }
         return message
 
-    def _calculate_cost(self, response) -> dict[str, float]:
+    def _calculate_cost(self, response: dict[str, Any]) -> dict[str, float]:
+        """Read cost in US dollars from usage, rejecting nonpositive values unless configured otherwise."""
         usage = response.get("usage", {})
         cost = usage.get("cost", 0.0)
         if cost <= 0.0 and self.config.cost_tracking != "ignore_errors":
@@ -139,7 +144,8 @@ class OpenRouterModel:
             template_kwargs={"finish_reason": response["choices"][0].get("finish_reason")},
         )
 
-    def format_message(self, **kwargs) -> dict:
+    def format_message(self, **kwargs: Any) -> dict:
+        """Expand configured multimodal markers in the supplied message fields."""
         return expand_multimodal_content(kwargs, pattern=self.config.multimodal_regex)
 
     def format_observation_messages(
@@ -155,10 +161,12 @@ class OpenRouterModel:
             multimodal_regex=self.config.multimodal_regex,
         )
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return model configuration for templates; additional keyword arguments are unused."""
         return self.config.model_dump()
 
     def serialize(self) -> dict:
+        """Return JSON-mode model configuration and its implementation path."""
         return {
             "info": {
                 "config": {
@@ -172,7 +180,8 @@ class OpenRouterModel:
 class _DictToObj:
     """Simple wrapper to convert dict to object with attribute access."""
 
-    def __init__(self, d: dict):
+    def __init__(self, d: dict) -> None:
+        """Expose tool-call fields as attributes, recursively wrapping the function field."""
         self._d = d
         self.id = d.get("id")
         self.function = _DictToObj(d.get("function", {})) if "function" in d else None

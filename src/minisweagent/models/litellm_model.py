@@ -56,12 +56,14 @@ class LitellmModel:
         KeyboardInterrupt,
     ]
 
-    def __init__(self, *, config_class: Callable = LitellmModelConfig, **kwargs):
+    def __init__(self, *, config_class: Callable = LitellmModelConfig, **kwargs: Any) -> None:
+        """Load model settings and register an optional local cost metadata file."""
         self.config = config_class(**kwargs)
         if self.config.litellm_model_registry and Path(self.config.litellm_model_registry).is_file():
             litellm.utils.register_model(json.loads(Path(self.config.litellm_model_registry).read_text()))
 
-    def _query(self, messages: list[dict[str, str]], **kwargs):
+    def _query(self, messages: list[dict[str, str]], **kwargs: Any) -> Any:
+        """Send a tool-enabled completion request; the response type depends on the provider."""
         try:
             return litellm.completion(
                 model=self.config.model_name,
@@ -74,11 +76,17 @@ class LitellmModel:
             raise e
 
     def _prepare_messages_for_api(self, messages: list[dict]) -> list[dict]:
+        """Strip internal metadata, reorder thinking blocks, and apply configured cache markers."""
         prepared = [{k: v for k, v in msg.items() if k != "extra"} for msg in messages]
         prepared = _reorder_anthropic_thinking_blocks(prepared)
         return set_cache_control(prepared, mode=self.config.set_cache_control)
 
-    def query(self, messages: list[dict[str, str]], **kwargs) -> dict:
+    def query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict:
+        """Retry a completion, record cost, and return actions plus response metadata.
+
+        FormatError carries the response and billed cost for the agent to persist.
+        Message content and metadata may be nested provider-specific structures.
+        """
         for attempt in retry(logger=logger, abort_exceptions=self.abort_exceptions):
             with attempt:
                 response = self._query(self._prepare_messages_for_api(messages), **kwargs)
@@ -105,7 +113,8 @@ class LitellmModel:
         }
         return message
 
-    def _calculate_cost(self, response) -> dict[str, float]:
+    def _calculate_cost(self, response: Any) -> dict[str, float]:
+        """Return cost in US dollars; raise RuntimeError on invalid cost unless errors are ignored."""
         try:
             cost = litellm.cost_calculator.completion_cost(response, model=self.config.model_name)
             if cost <= 0.0:
@@ -125,7 +134,7 @@ class LitellmModel:
                 raise RuntimeError(msg) from e
         return {"cost": cost}
 
-    def _parse_actions(self, response) -> list[dict]:
+    def _parse_actions(self, response: Any) -> list[dict]:
         """Parse tool calls from the response. Raises FormatError if unknown tool."""
         tool_calls = response.choices[0].message.tool_calls or []
         return parse_toolcall_actions(
@@ -134,7 +143,8 @@ class LitellmModel:
             template_kwargs={"finish_reason": response.choices[0].finish_reason},
         )
 
-    def format_message(self, **kwargs) -> dict:
+    def format_message(self, **kwargs: Any) -> dict:
+        """Expand configured multimodal markers in the supplied message fields."""
         return expand_multimodal_content(kwargs, pattern=self.config.multimodal_regex)
 
     def format_observation_messages(
@@ -150,10 +160,12 @@ class LitellmModel:
             multimodal_regex=self.config.multimodal_regex,
         )
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return model configuration for templates; additional keyword arguments are unused."""
         return self.config.model_dump()
 
     def serialize(self) -> dict:
+        """Return JSON-mode model configuration and its implementation path."""
         return {
             "info": {
                 "config": {

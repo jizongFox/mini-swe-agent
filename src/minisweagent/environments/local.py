@@ -17,7 +17,7 @@ class LocalEnvironmentConfig(BaseModel):
 
 
 class LocalEnvironment:
-    def __init__(self, *, config_class: type = LocalEnvironmentConfig, **kwargs):
+    def __init__(self, *, config_class: type = LocalEnvironmentConfig, **kwargs: Any) -> None:
         """This class executes bash commands directly on the local machine."""
         self.config = config_class(**kwargs)
 
@@ -42,7 +42,7 @@ class LocalEnvironment:
         self._check_finished(output)
         return output
 
-    def _check_finished(self, output: dict):
+    def _check_finished(self, output: dict) -> None:
         """Raises Submitted if the output indicates task completion."""
         lines = output.get("output", "").lstrip().splitlines(keepends=True)
         if lines and lines[0].strip() == "COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT" and output["returncode"] == 0:
@@ -55,10 +55,12 @@ class LocalEnvironment:
                 }
             )
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Merge config, host platform, environment variables, and caller overrides."""
         return recursive_merge(self.config.model_dump(), platform.uname()._asdict(), os.environ, kwargs)
 
     def serialize(self) -> dict:
+        """Return JSON-mode environment configuration and its implementation path."""
         return {
             "info": {
                 "config": {

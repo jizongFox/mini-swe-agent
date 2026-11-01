@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Any
 
 import requests
 
@@ -25,11 +26,13 @@ class OpenRouterTextbasedModelConfig(OpenRouterModelConfig):
 
 
 class OpenRouterTextbasedModel(OpenRouterModel):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize OpenRouter with regex-based action parsing configuration."""
         super().__init__(**kwargs)
         self.config = OpenRouterTextbasedModelConfig(**kwargs)
 
-    def _query(self, messages: list[dict[str, str]], **kwargs):
+    def _query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict[str, Any]:
+        """Request a text completion without tools, translating HTTP failures into backend errors."""
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",

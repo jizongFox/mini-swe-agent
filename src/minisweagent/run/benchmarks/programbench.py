@@ -10,6 +10,7 @@ from pathlib import Path
 import typer
 from rich.live import Live
 
+from minisweagent import Environment
 from minisweagent.config import builtin_config_dir, get_config_from_spec
 from minisweagent.environments import get_environment
 from minisweagent.models import get_model
@@ -33,7 +34,8 @@ app = typer.Typer(rich_markup_mode="rich", add_completion=False)
 class ProgramBenchAgent(ProgressTrackingAgent):
     """Drops ``raw_output`` from tool-result messages to avoid bloating trajectories."""
 
-    def serialize(self, *extra_dicts) -> dict:
+    def serialize(self, *extra_dicts: dict) -> dict:
+        """Serialize the trajectory and remove raw outputs from its message metadata in place."""
         data = super().serialize(*extra_dicts)
         for msg in data.get("messages", []):
             extra = msg.get("extra", {})
@@ -43,7 +45,7 @@ class ProgramBenchAgent(ProgressTrackingAgent):
         return data
 
 
-def copy_submission(env, dest: Path, *, src: str = "/workspace") -> None:
+def copy_submission(env: Environment, dest: Path, *, src: str = "/workspace") -> None:
     """Tar+gzip the workspace from the container to a local file."""
     container_id = getattr(env, "container_id", None)
     executable = getattr(getattr(env, "config", None), "executable", None)
@@ -132,6 +134,7 @@ def main(
     environment_class: str | None = typer.Option(None, "--environment-class", help="Environment type (e.g., docker, singularity)", rich_help_panel="Advanced"),
 ) -> None:
     # fmt: on
+    """Run filtered ProgramBench instances concurrently and save trajectories and submissions."""
     from programbench.utils.instance_filters import filter_instances  # pylint: disable=import-error
     from programbench.utils.load_data import load_all_instances  # pylint: disable=import-error
 
@@ -160,7 +163,8 @@ def main(
 
     progress_manager = RunBatchProgressManager(len(instances), output_path / f"exit_statuses_{int(time.time())}.yaml")
 
-    def process_futures(futures: dict[concurrent.futures.Future, str]):
+    def process_futures(futures: dict[concurrent.futures.Future, str]) -> None:
+        """Drain submitted tasks, ignoring cancellation and reporting uncaught failures."""
         for future in concurrent.futures.as_completed(futures):
             try:
                 future.result()

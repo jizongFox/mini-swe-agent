@@ -28,6 +28,7 @@ def main(
         prompt="What model do you want to use?",
     ),
 ) -> DefaultAgent:
+    """Run a task with the default agent and local shell, then return the completed agent."""
     logging.basicConfig(level=logging.DEBUG)
     agent = DefaultAgent(
         LitellmModel(model_name=model_name),

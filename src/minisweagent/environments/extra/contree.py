@@ -53,7 +53,9 @@ class ExecutionResult(TypedDict):
 
 
 class ContreeEnvironment(Environment):
-    def __init__(self, *, config_class: type[ContreeEnvironmentConfig] = ContreeEnvironmentConfig, **kwargs):
+    def __init__(
+        self, *, config_class: type[ContreeEnvironmentConfig] = ContreeEnvironmentConfig, **kwargs: Any
+    ) -> None:
         """This class executes bash commands in a [ConTree](https://contree.dev) container
         using [contree-sdk](https://github.com/nebius/contree-sdk)"""
 
@@ -72,6 +74,7 @@ class ContreeEnvironment(Environment):
             )
 
     def _pull_image(self) -> ContreeImageSync:
+        """Resolve the configured OCI image using the optional tag and credentials."""
         return self.client.images.oci(
             self.config.image,
             tag=self.config.image_tag,
@@ -80,6 +83,7 @@ class ContreeEnvironment(Environment):
         )
 
     def _shell_command(self, command: str) -> str:
+        """Quote a command as a single argument to the configured interpreter."""
         shell_cmd = " ".join(self.config.interpreter)
         return f"{shell_cmd} {shlex.quote(command)}"
 
@@ -121,7 +125,7 @@ class ContreeEnvironment(Environment):
         self._check_finished(output)
         return output
 
-    def _check_finished(self, output: dict):
+    def _check_finished(self, output: dict) -> None:
         """Raises Submitted if the output indicates task completion."""
         lines = output.get("output", "").lstrip().splitlines(keepends=True)
         if lines and lines[0].strip() == "COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT" and output["returncode"] == 0:
@@ -134,10 +138,12 @@ class ContreeEnvironment(Environment):
                 }
             )
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Merge configuration, host platform details, and caller overrides for templates."""
         return recursive_merge(self.config.model_dump(), platform.uname()._asdict(), kwargs)
 
     def serialize(self) -> dict:
+        """Return JSON-mode environment configuration and its implementation path."""
         return {
             "info": {
                 "config": {

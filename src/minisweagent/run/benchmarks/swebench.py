@@ -77,6 +77,7 @@ def get_swebench_docker_image_name(instance: dict) -> str:
 
 
 def get_sb_environment(config: dict, instance: dict) -> Environment:
+    """Select the instance image, initialize its environment, and check any startup command."""
     env_config = {**config.get("environment", {})}
     env_config["environment_class"] = env_config.get("environment_class", "docker")
     image_name = get_swebench_docker_image_name(instance)
@@ -94,7 +95,7 @@ def get_sb_environment(config: dict, instance: dict) -> Environment:
     return env
 
 
-def update_preds_file(output_path: Path, instance_id: str, model_name: str, result: str):
+def update_preds_file(output_path: Path, instance_id: str, model_name: str, result: str) -> None:
     """Update the output JSON file with results from a single instance."""
     with _OUTPUT_FILE_LOCK:
         output_data = {}
@@ -108,7 +109,7 @@ def update_preds_file(output_path: Path, instance_id: str, model_name: str, resu
         output_path.write_text(json.dumps(output_data, indent=2))
 
 
-def remove_from_preds_file(output_path: Path, instance_id: str):
+def remove_from_preds_file(output_path: Path, instance_id: str) -> None:
     """Remove an instance from the predictions file."""
     if not output_path.exists():
         return
@@ -214,6 +215,7 @@ def main(
     environment_class: str | None = typer.Option(None, "--environment-class", help="Environment type to use. Recommended are docker or singularity", rich_help_panel="Advanced"),
 ) -> None:
     # fmt: on
+    """Run selected SWE-bench instances concurrently and persist predictions and trajectories."""
     output_path = Path(output)
     output_path.mkdir(parents=True, exist_ok=True)
     logger.info(f"Results will be saved to {output_path}")
@@ -242,7 +244,8 @@ def main(
 
     progress_manager = RunBatchProgressManager(len(instances), output_path / f"exit_statuses_{time.time()}.yaml")
 
-    def process_futures(futures: dict[concurrent.futures.Future, str]):
+    def process_futures(futures: dict[concurrent.futures.Future, str]) -> None:
+        """Drain submitted tasks, ignoring cancellation and reporting uncaught failures."""
         for future in concurrent.futures.as_completed(futures):
             try:
                 future.result()

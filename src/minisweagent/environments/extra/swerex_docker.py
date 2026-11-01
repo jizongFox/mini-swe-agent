@@ -20,7 +20,7 @@ class SwerexDockerEnvironmentConfig(BaseModel):
 
 
 class SwerexDockerEnvironment:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """This class executes bash commands in a Docker container using SWE-ReX for sandboxing."""
         self.config = SwerexDockerEnvironmentConfig(**kwargs)
         self.deployment = DockerDeployment(image=self.config.image, **self.config.deployment_extra_kwargs)
@@ -53,7 +53,7 @@ class SwerexDockerEnvironment:
         self._check_finished(output)
         return output
 
-    def _check_finished(self, output: dict):
+    def _check_finished(self, output: dict) -> None:
         """Raises Submitted if the output indicates task completion."""
         lines = output.get("output", "").lstrip().splitlines(keepends=True)
         if lines and lines[0].strip() == "COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT" and output["returncode"] == 0:
@@ -66,10 +66,12 @@ class SwerexDockerEnvironment:
                 }
             )
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return configuration variables merged with caller overrides."""
         return recursive_merge(self.config.model_dump(), kwargs)
 
     def serialize(self) -> dict:
+        """Return JSON-mode environment configuration and its implementation path."""
         return {
             "info": {
                 "config": {

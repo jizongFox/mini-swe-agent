@@ -7,6 +7,7 @@ inspecting trajectories, etc.
 
 import sys
 from importlib import import_module
+from typing import Any
 
 from rich.console import Console
 
@@ -20,6 +21,7 @@ subcommands = [
 
 
 def get_docstring() -> str:
+    """Build the central command's help text from registered subcommand aliases."""
     lines = [
         "This is the [yellow]central entry point for all extra commands[/yellow] from mini-swe-agent.",
         "",
@@ -32,7 +34,11 @@ def get_docstring() -> str:
     return "\n".join(lines)
 
 
-def main():
+def main() -> Any:
+    """Dispatch argv to a lazily imported Typer app, or print help for missing or unknown commands.
+
+    Return the selected app's result, or None when only help is printed.
+    """
     args = sys.argv[1:]
 
     if len(args) == 0 or len(args) == 1 and args[0] in ["-h", "--help"]:

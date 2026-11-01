@@ -9,6 +9,7 @@ It is located at [bold green]{global_config_file}[/bold green].
 
 import os
 import subprocess
+from typing import Any
 
 from dotenv import load_dotenv, set_key, unset_key
 from rich.console import Console
@@ -18,7 +19,8 @@ from typer import Argument, Typer
 from minisweagent import global_config_file
 
 
-def _reload_config():
+def _reload_config() -> None:
+    """Reload persisted values into the process environment, overriding existing entries."""
     load_dotenv(dotenv_path=global_config_file, override=True)
 
 
@@ -52,14 +54,16 @@ To find the best model, check the leaderboard at https://swebench.com/
 """
 
 
-def prompt(*args, **kwargs):
+def prompt(*args: Any, **kwargs: Any) -> str:
+    """Read input via prompt_toolkit, importing it lazily to keep startup fast."""
     # Defer import to avoid slow import module
     from prompt_toolkit.shortcuts.prompt import prompt as _prompt
 
     return _prompt(*args, **kwargs)
 
 
-def configure_if_first_time():
+def configure_if_first_time() -> None:
+    """Run interactive setup only when MSWEA_CONFIGURED is not set."""
     if not os.getenv("MSWEA_CONFIGURED"):
         console.print(Rule())
         setup()
@@ -67,7 +71,7 @@ def configure_if_first_time():
 
 
 @app.command()
-def setup():
+def setup() -> None:
     """Setup the global config file."""
     console.print(_SETUP_HELP.format(global_config_file=global_config_file))
     default_model = prompt(
@@ -100,7 +104,7 @@ def setup():
 def set(
     key: str | None = Argument(None, help="The key to set"),
     value: str | None = Argument(None, help="The value to set"),
-):
+) -> None:
     """Set a key in the global config file."""
     if key is None:
         key = prompt("Enter the key to set: ")
@@ -111,7 +115,7 @@ def set(
 
 
 @app.command()
-def unset(key: str | None = Argument(None, help="The key to unset")):
+def unset(key: str | None = Argument(None, help="The key to unset")) -> None:
     """Unset a key in the global config file."""
     if key is None:
         key = prompt("Enter the key to unset: ")
@@ -120,7 +124,7 @@ def unset(key: str | None = Argument(None, help="The key to unset")):
 
 
 @app.command()
-def edit():
+def edit() -> None:
     """Edit the global config file."""
     editor = os.getenv("EDITOR", "nano")
     subprocess.run([editor, global_config_file])

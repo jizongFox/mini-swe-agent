@@ -102,12 +102,13 @@ class DeterministicModelConfig(BaseModel):
 
 
 class DeterministicModel:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize with a list of output messages to return in sequence."""
         self.config = DeterministicModelConfig(**kwargs)
         self.current_index = -1
 
-    def query(self, messages: list[dict[str, str]], **kwargs) -> dict:
+    def query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict:
+        """Return the next configured message, processing test directives; exhaustion raises IndexError."""
         self.current_index += 1
         output = self.config.outputs[self.current_index]
         if _process_test_actions(output.get("extra", {}).get("actions", [])):
@@ -115,7 +116,8 @@ class DeterministicModel:
         GLOBAL_MODEL_STATS.add(self.config.cost_per_call)
         return output
 
-    def format_message(self, **kwargs) -> dict:
+    def format_message(self, **kwargs: Any) -> dict:
+        """Expand configured multimodal markers in the supplied message fields."""
         return expand_multimodal_content(kwargs, pattern=self.config.multimodal_regex)
 
     def format_observation_messages(
@@ -129,10 +131,12 @@ class DeterministicModel:
             multimodal_regex=self.config.multimodal_regex,
         )
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return model configuration for templates; additional keyword arguments are unused."""
         return self.config.model_dump()
 
     def serialize(self) -> dict:
+        """Return JSON-mode model configuration and its implementation path."""
         return {
             "info": {
                 "config": {
@@ -158,12 +162,13 @@ class DeterministicToolcallModelConfig(BaseModel):
 
 
 class DeterministicToolcallModel:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize with a list of toolcall output messages to return in sequence."""
         self.config = DeterministicToolcallModelConfig(**kwargs)
         self.current_index = -1
 
-    def query(self, messages: list[dict[str, str]], **kwargs) -> dict:
+    def query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict:
+        """Return the next tool-call message, processing test directives; exhaustion raises IndexError."""
         self.current_index += 1
         output = self.config.outputs[self.current_index]
         if _process_test_actions(output.get("extra", {}).get("actions", [])):
@@ -171,7 +176,8 @@ class DeterministicToolcallModel:
         GLOBAL_MODEL_STATS.add(self.config.cost_per_call)
         return output
 
-    def format_message(self, **kwargs) -> dict:
+    def format_message(self, **kwargs: Any) -> dict:
+        """Expand configured multimodal markers in the supplied message fields."""
         return expand_multimodal_content(kwargs, pattern=self.config.multimodal_regex)
 
     def format_observation_messages(
@@ -187,10 +193,12 @@ class DeterministicToolcallModel:
             multimodal_regex=self.config.multimodal_regex,
         )
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return model configuration for templates; additional keyword arguments are unused."""
         return self.config.model_dump()
 
     def serialize(self) -> dict:
+        """Return JSON-mode model configuration and its implementation path."""
         return {
             "info": {
                 "config": {
@@ -218,12 +226,13 @@ class DeterministicResponseAPIToolcallModelConfig(BaseModel):
 class DeterministicResponseAPIToolcallModel:
     """Deterministic test model using OpenAI Responses API format."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize with a list of Response API output messages to return in sequence."""
         self.config = DeterministicResponseAPIToolcallModelConfig(**kwargs)
         self.current_index = -1
 
-    def query(self, messages: list[dict[str, str]], **kwargs) -> dict:
+    def query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict:
+        """Return the next Responses API message, processing directives; exhaustion raises IndexError."""
         self.current_index += 1
         output = self.config.outputs[self.current_index]
         if _process_test_actions(output.get("extra", {}).get("actions", [])):
@@ -231,7 +240,7 @@ class DeterministicResponseAPIToolcallModel:
         GLOBAL_MODEL_STATS.add(self.config.cost_per_call)
         return output
 
-    def format_message(self, **kwargs) -> dict:
+    def format_message(self, **kwargs: Any) -> dict:
         """Format message in Responses API format."""
         role = kwargs.get("role", "user")
         content = kwargs.get("content", "")
@@ -255,10 +264,12 @@ class DeterministicResponseAPIToolcallModel:
             multimodal_regex=self.config.multimodal_regex,
         )
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return model configuration for templates; additional keyword arguments are unused."""
         return self.config.model_dump()
 
     def serialize(self) -> dict:
+        """Return JSON-mode model configuration and its implementation path."""
         return {
             "info": {
                 "config": {

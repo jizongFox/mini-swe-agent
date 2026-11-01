@@ -36,14 +36,15 @@ class SingularityEnvironmentConfig(BaseModel):
 
 class SingularityEnvironment:
     def __init__(
-        self, *, config_class: type = SingularityEnvironmentConfig, logger: logging.Logger | None = None, **kwargs
-    ):
+        self, *, config_class: type = SingularityEnvironmentConfig, logger: logging.Logger | None = None, **kwargs: Any
+    ) -> None:
         """Singularity environment. See `SingularityEnvironmentConfig` for kwargs."""
         self.logger = logger or logging.getLogger("minisweagent.environment")
         self.config = config_class(**kwargs)
         self.sandbox_dir = self._build_sandbox()
 
     def _build_sandbox(self) -> Path:
+        """Build and return a temporary sandbox path, retrying failed builds up to the configured limit."""
         # Building the sandbox can fail (very rarely), so we retry it
         max_retries = self.config.sandbox_build_retries
         for attempt in range(max_retries):
@@ -64,10 +65,12 @@ class SingularityEnvironment:
                     raise
         return sandbox_dir
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return configuration variables merged with caller overrides."""
         return recursive_merge(self.config.model_dump(), kwargs)
 
     def serialize(self) -> dict:
+        """Return JSON-mode environment configuration and its implementation path."""
         return {
             "info": {
                 "config": {
@@ -118,7 +121,7 @@ class SingularityEnvironment:
         self._check_finished(output)
         return output
 
-    def _check_finished(self, output: dict):
+    def _check_finished(self, output: dict) -> None:
         """Raises Submitted if the output indicates task completion."""
         lines = output.get("output", "").lstrip().splitlines(keepends=True)
         if lines and lines[0].strip() == "COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT" and output["returncode"] == 0:
@@ -131,9 +134,10 @@ class SingularityEnvironment:
                 }
             )
 
-    def cleanup(self):
+    def cleanup(self) -> None:
+        """Remove the sandbox directory, ignoring filesystem errors."""
         shutil.rmtree(self.sandbox_dir, ignore_errors=True)
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup sandbox when object is destroyed."""
         self.cleanup()

@@ -17,6 +17,7 @@ _ENVIRONMENT_MAPPING = {
 
 
 def get_environment_class(spec: str) -> type[Environment]:
+    """Resolve an environment alias or import path; raise ValueError if resolution fails."""
     full_path = _ENVIRONMENT_MAPPING.get(spec, spec)
     try:
         module_name, class_name = full_path.rsplit(".", 1)
@@ -28,6 +29,7 @@ def get_environment_class(spec: str) -> type[Environment]:
 
 
 def get_environment(config: dict, *, default_type: str = "") -> Environment:
+    """Construct an environment from a copied config, falling back to default_type."""
     config = copy.deepcopy(config)
     environment_class = config.pop("environment_class", default_type)
     return get_environment_class(environment_class)(**config)

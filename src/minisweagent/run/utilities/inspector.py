@@ -61,12 +61,14 @@ class BindingCommandProvider(Provider):
     }
 
     async def discover(self) -> Hits:
+        """Yield palette entries for all configured key bindings."""
         app = self.app
         for binding in app.BINDINGS:
             desc = self.COMMAND_DESCRIPTIONS.get(binding.action, binding.description)
             yield DiscoveryHit(desc, lambda b=binding: app.run_action(b.action))
 
     async def search(self, query: str) -> Hits:
+        """Yield matching binding commands scored and highlighted for the palette query."""
         matcher = self.matcher(query)
         app = self.app
         for binding in app.BINDINGS:
@@ -94,7 +96,8 @@ class TrajectoryInspector(App):
         Binding("q", "quit", "Quit"),
     ]
 
-    def __init__(self, trajectory_files: list[Path], show_reasoning: bool = True):
+    def __init__(self, trajectory_files: list[Path], show_reasoning: bool = True) -> None:
+        """Load inspector CSS and, when available, the first trajectory in the supplied file list."""
         css_path = os.environ.get(
             "MSWEA_INSPECTOR_STYLE_PATH", str(Path(__file__).parent.parent.parent / "config" / "inspector.tcss")
         )
@@ -183,6 +186,7 @@ class TrajectoryInspector(App):
         return self.trajectory_files[self.i_trajectory].name
 
     def compose(self) -> ComposeResult:
+        """Yield the header, scrollable message container, and footer widgets."""
         yield Header()
         with Container(id="main"):
             with VerticalScroll():
@@ -190,6 +194,7 @@ class TrajectoryInspector(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        """Render the selected trajectory after the inspector widgets are mounted."""
         self.update_content()
 
     def update_content(self) -> None:
@@ -227,28 +232,36 @@ class TrajectoryInspector(App):
     # --- Navigation actions ---
 
     def action_next_step(self) -> None:
+        """Advance one step, clamping at the last available step."""
         self.i_step += 1
 
     def action_previous_step(self) -> None:
+        """Move back one step, clamping at the first available step."""
         self.i_step -= 1
 
     def action_first_step(self) -> None:
+        """Select the first step of the current trajectory."""
         self.i_step = 0
 
     def action_last_step(self) -> None:
+        """Select the last step of the current trajectory."""
         self.i_step = self.n_steps - 1
 
     def action_next_trajectory(self) -> None:
+        """Load the next trajectory when one is available."""
         self.i_trajectory += 1
 
     def action_previous_trajectory(self) -> None:
+        """Load the previous trajectory when one is available."""
         self.i_trajectory -= 1
 
     def action_scroll_down(self) -> None:
+        """Scroll the message viewport down by fifteen rows."""
         vs = self.query_one(VerticalScroll)
         vs.scroll_to(y=vs.scroll_target_y + 15)
 
     def action_scroll_up(self) -> None:
+        """Scroll the message viewport up by fifteen rows."""
         vs = self.query_one(VerticalScroll)
         vs.scroll_to(y=vs.scroll_target_y - 15)
 
@@ -272,6 +285,7 @@ class TrajectoryInspector(App):
         temp_path.unlink()
 
     def action_toggle_reasoning(self) -> None:
+        """Toggle reasoning visibility and rerender the current step."""
         self.show_reasoning = not self.show_reasoning
         self.update_content()
 
@@ -297,6 +311,7 @@ def main(
     path: str = typer.Argument(".", help="Directory to search for trajectory files or specific trajectory file"),
     reasoning: bool = typer.Option(True, "--reasoning/--no-reasoning", help="Show reasoning content"),
 ) -> None:
+    """Discover trajectory JSON files and launch the inspector; reject missing or empty paths."""
     path_obj = Path(path)
 
     if path_obj.is_file():

@@ -8,6 +8,7 @@ from typing import Literal
 
 
 def _get_content_text(entry: dict) -> str | None:
+    """Read text or None, requiring list content to contain exactly one text block."""
     if entry["content"] is None:
         return None
     if isinstance(entry["content"], str):
@@ -17,6 +18,7 @@ def _get_content_text(entry: dict) -> str | None:
 
 
 def _clear_cache_control(entry: dict) -> None:
+    """Remove cache markers in place, requiring list content to contain exactly one block."""
     if isinstance(entry["content"], list):
         assert len(entry["content"]) == 1, "Expected single message in content"
         entry["content"][0].pop("cache_control", None)
@@ -25,6 +27,7 @@ def _clear_cache_control(entry: dict) -> None:
 
 
 def _set_cache_control(entry: dict) -> None:
+    """Mark an entry ephemeral in place, using message-level markers for tools or None content."""
     # Handle None content (e.g., assistant messages with only tool_use)
     if entry["content"] is None:
         entry["cache_control"] = {"type": "ephemeral"}

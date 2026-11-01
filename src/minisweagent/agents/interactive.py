@@ -8,7 +8,7 @@ There are three modes:
 
 import re
 import sys
-from typing import Literal, NoReturn
+from typing import Any, Literal, NoReturn
 
 from rich.console import Console
 from rich.rule import Rule
@@ -33,14 +33,19 @@ class InteractiveAgentConfig(AgentConfig):
 class InteractiveAgent(DefaultAgent):
     _MODE_COMMANDS_MAPPING = {"/u": "human", "/c": "confirm", "/y": "yolo"}
 
-    def __init__(self, *args, config_class=InteractiveAgentConfig, **kwargs):
+    def __init__(
+        self, *args: Any, config_class: type[InteractiveAgentConfig] = InteractiveAgentConfig, **kwargs: Any
+    ) -> None:
+        """Initialize the underlying agent and the last-confirmed spending counter."""
         super().__init__(*args, config_class=config_class, **kwargs)
         self.cost_last_confirmed = 0.0
 
     def _interrupt(self, content: str, *, itype: str = "UserInterruption") -> NoReturn:
+        """Raise UserInterruption with a user message and interruption category."""
         raise UserInterruption({"role": "user", "content": content, "extra": {"interrupt_type": itype}})
 
     def add_messages(self, *messages: dict) -> list[dict]:
+        """Print messages, append them to the trajectory, and return the appended list."""
         # Extend supermethod to print messages
         for msg in messages:
             role, content = msg.get("role") or msg.get("type", "unknown"), get_content_string(msg)
@@ -56,6 +61,7 @@ class InteractiveAgent(DefaultAgent):
         return super().add_messages(*messages)
 
     def query(self) -> dict:
+        """Get a human command or model response, prompting for raised limits when interactive."""
         # Extend supermethod to handle human mode
         if self.config.mode == "human":
             match command := self._prompt_and_handle_slash_commands("[bold yellow]>[/bold yellow] "):
@@ -107,6 +113,7 @@ class InteractiveAgent(DefaultAgent):
             return False
 
     def step(self) -> list[dict]:
+        """Run one step, translating keyboard interruption into an agent-flow interruption."""
         # Override the step method to handle user interruption
         try:
             console.print(Rule())
@@ -122,6 +129,7 @@ class InteractiveAgent(DefaultAgent):
             self._interrupt(f"Interrupted by user: {interruption_message}")
 
     def execute_actions(self, message: dict) -> list[dict]:
+        """Confirm and execute actions, recording observations even if execution is interrupted."""
         # Override to handle user confirmation and confirm_exit, with try/finally to preserve partial outputs
         actions = message.get("extra", {}).get("actions", [])
         commands = [action["command"] for action in actions]
@@ -139,6 +147,7 @@ class InteractiveAgent(DefaultAgent):
         return result
 
     def _add_observation_messages(self, message: dict, outputs: list[dict]) -> list[dict]:
+        """Render execution outputs, append them to the trajectory, and return the messages."""
         return self.add_messages(*self.model.format_observation_messages(message, outputs, self.get_template_vars()))
 
     def _check_for_new_task_or_submit(self, e: Submitted) -> NoReturn:
@@ -160,9 +169,11 @@ class InteractiveAgent(DefaultAgent):
         raise e
 
     def _should_ask_confirmation(self, action: str) -> bool:
+        """Return whether confirm mode requires approval for this non-whitelisted command."""
         return self.config.mode == "confirm" and not any(re.match(r, action) for r in self.config.whitelist_actions)
 
     def _ask_confirmation_or_interrupt(self, commands: list[str]) -> None:
+        """Prompt for command approval when needed; raise UserInterruption on rejection."""
         if not any(self._should_ask_confirmation(c) for c in commands):
             return
         prompt = (

@@ -25,7 +25,8 @@ from rich.table import Table
 import minisweagent.models
 
 
-def _shorten_str(s: str, max_len: int, shorten_left=False) -> str:
+def _shorten_str(s: str, max_len: int, shorten_left: bool = False) -> str:
+    """Truncate text with an ellipsis on the chosen side, then pad it to the display width."""
     if not shorten_left:
         s = s[: max_len - 3] + "..." if len(s) > max_len else s
     else:
@@ -38,7 +39,7 @@ class RunBatchProgressManager:
         self,
         num_instances: int,
         yaml_report_path: Path | None = None,
-    ):
+    ) -> None:
         """This class manages a progress bar/UI for run-batch
 
         Args:
@@ -84,6 +85,7 @@ class RunBatchProgressManager:
 
     @property
     def n_completed(self) -> int:
+        """Return the number of instances recorded under terminal exit statuses."""
         return sum(len(instances) for instances in self._instances_by_exit_status.values())
 
     def _get_eta_text(self) -> str:
@@ -96,7 +98,8 @@ class RunBatchProgressManager:
         except ZeroDivisionError:
             return ""
 
-    def update_exit_status_table(self):
+    def update_exit_status_table(self) -> None:
+        """Replace the rendered exit-status table using the current completion records."""
         # We cannot update the existing table, so we need to create a new one and
         # assign it back to the render group.
         t = Table()
@@ -115,6 +118,7 @@ class RunBatchProgressManager:
         self.render_group.renderables[1] = t
 
     def _update_total_costs(self) -> None:
+        """Refresh total model cost and the estimated time remaining on the main progress bar."""
         with self._lock:
             self._main_progress_bar.update(
                 self._main_task_id,
@@ -122,7 +126,8 @@ class RunBatchProgressManager:
                 eta=self._get_eta_text(),
             )
 
-    def update_instance_status(self, instance_id: str, message: str):
+    def update_instance_status(self, instance_id: str, message: str) -> None:
+        """Refresh a started instance's status, aggregate cost, and estimated time remaining."""
         assert self._task_progress_bar is not None
         assert self._main_progress_bar is not None
         with self._lock:
@@ -133,7 +138,8 @@ class RunBatchProgressManager:
             )
         self._update_total_costs()
 
-    def on_instance_start(self, instance_id: str):
+    def on_instance_start(self, instance_id: str) -> None:
+        """Register a per-instance spinner task before status updates are sent."""
         with self._lock:
             self._spinner_tasks[instance_id] = self._task_progress_bar.add_task(
                 description=f"Task {instance_id}",
@@ -143,6 +149,7 @@ class RunBatchProgressManager:
             )
 
     def on_instance_end(self, instance_id: str, exit_status: str | None) -> None:
+        """Record completion, remove its spinner, refresh the display, and optionally save YAML."""
         with self._lock:
             self._instances_by_exit_status[exit_status].append(instance_id)
             try:
@@ -156,6 +163,7 @@ class RunBatchProgressManager:
             self._save_overview_data_yaml(self._yaml_report_path)
 
     def on_uncaught_exception(self, instance_id: str, exception: Exception) -> None:
+        """Record a failed completion using the exception class as its exit status."""
         self.on_instance_end(instance_id, f"Uncaught {type(exception).__name__}")
 
     def print_report(self) -> None:

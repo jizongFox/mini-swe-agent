@@ -7,6 +7,7 @@ import logging
 import time
 import traceback
 from pathlib import Path
+from typing import Any
 
 from jinja2 import StrictUndefined, Template
 from pydantic import BaseModel
@@ -36,7 +37,7 @@ class AgentConfig(BaseModel):
 
 
 class DefaultAgent:
-    def __init__(self, model: Model, env: Environment, *, config_class: type = AgentConfig, **kwargs):
+    def __init__(self, model: Model, env: Environment, *, config_class: type = AgentConfig, **kwargs: Any) -> None:
         """See the `AgentConfig` class for permitted keyword arguments."""
         self.config = config_class(**kwargs)
         self.messages: list[dict] = []
@@ -49,7 +50,8 @@ class DefaultAgent:
         self.n_consecutive_format_errors = 0
         self._start_time = time.time()
 
-    def get_template_vars(self, **kwargs) -> dict:
+    def get_template_vars(self, **kwargs: Any) -> dict:
+        """Merge config, environment, model, counters, and overrides; later values take precedence."""
         return recursive_merge(
             self.config.model_dump(),
             self.env.get_template_vars(),
@@ -64,14 +66,17 @@ class DefaultAgent:
         )
 
     def _render_template(self, template: str) -> str:
+        """Render a Jinja template, raising UndefinedError for missing variables."""
         return Template(template, undefined=StrictUndefined).render(**self.get_template_vars())
 
     def add_messages(self, *messages: dict) -> list[dict]:
+        """Append messages to the trajectory and return them in a new list."""
         self.logger.debug(messages)  # set log level to debug to see
         self.messages.extend(messages)
         return list(messages)
 
     def handle_uncaught_exception(self, e: Exception) -> list[dict]:
+        """Append and return an exit message containing the exception and active traceback."""
         return self.add_messages(
             self.model.format_message(
                 role="exit",
@@ -85,7 +90,7 @@ class DefaultAgent:
             )
         )
 
-    def run(self, task: str = "", **kwargs) -> dict:
+    def run(self, task: str = "", **kwargs: Any) -> dict:
         """Run step() until agent is finished. Returns dictionary with exit_status, submission keys."""
         self.extra_template_vars |= {"task": task, **kwargs}
         self.messages = []
@@ -156,7 +161,7 @@ class DefaultAgent:
         outputs = [self.env.execute(action) for action in message.get("extra", {}).get("actions", [])]
         return self.add_messages(*self.model.format_observation_messages(message, outputs, self.get_template_vars()))
 
-    def serialize(self, *extra_dicts) -> dict:
+    def serialize(self, *extra_dicts: dict) -> dict:
         """Serialize agent state to a json-compatible nested dictionary for saving."""
         last_message = self.messages[-1] if self.messages else {}
         last_extra = last_message.get("extra", {})
@@ -179,7 +184,7 @@ class DefaultAgent:
         }
         return recursive_merge(agent_data, self.model.serialize(), self.env.serialize(), *extra_dicts)
 
-    def save(self, path: Path | None, *extra_dicts) -> dict:
+    def save(self, path: Path | None, *extra_dicts: dict) -> dict:
         """Save the trajectory of the agent to a file if path is given. Returns full serialized data.
         You can pass additional dictionaries with extra data to be (recursively) merged into the output data.
         """

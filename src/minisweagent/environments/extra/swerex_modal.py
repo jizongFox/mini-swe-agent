@@ -35,7 +35,7 @@ class SwerexModalEnvironmentConfig(BaseModel):
 
 
 class SwerexModalEnvironment:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """This class executes bash commands in a Modal sandbox using SWE-ReX for remote execution.
 
         Modal (https://modal.com) provides serverless cloud compute that can be used to run
@@ -88,7 +88,7 @@ class SwerexModalEnvironment:
         self._check_finished(output)
         return output
 
-    def _check_finished(self, output: dict):
+    def _check_finished(self, output: dict) -> None:
         """Raises Submitted if the output indicates task completion."""
         lines = output.get("output", "").lstrip().splitlines(keepends=True)
         if lines and lines[0].strip() == "COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT" and output["returncode"] == 0:
@@ -101,10 +101,12 @@ class SwerexModalEnvironment:
                 }
             )
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Return configuration variables merged with caller overrides."""
         return recursive_merge(self.config.model_dump(), kwargs)
 
     def serialize(self) -> dict:
+        """Return JSON-mode environment configuration and its implementation path."""
         return {
             "info": {
                 "config": {
@@ -114,8 +116,11 @@ class SwerexModalEnvironment:
             }
         }
 
-    def stop(self):
-        async def _stop():
+    def stop(self) -> None:
+        """Attempt to stop the deployment within ten seconds, suppressing shutdown errors."""
+
+        async def _stop() -> None:
+            """Await deployment shutdown with a ten-second timeout."""
             await asyncio.wait_for(self.deployment.stop(), timeout=10)
 
         try:

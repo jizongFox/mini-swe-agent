@@ -10,6 +10,7 @@ _multiline_prompt_session = PromptSession(history=_history, multiline=True)
 
 
 def _multiline_prompt() -> str:
+    """Read a multiline message using the shared persistent prompt history."""
     return _multiline_prompt_session.prompt(
         "",
         bottom_toolbar=HTML(

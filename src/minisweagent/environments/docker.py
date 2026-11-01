@@ -48,8 +48,8 @@ class DockerEnvironment:
         *,
         config_class: type = DockerEnvironmentConfig,
         logger: logging.Logger | None = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         """This class executes bash commands in a Docker container using direct docker commands.
         See `DockerEnvironmentConfig` for keyword arguments.
         """
@@ -58,10 +58,12 @@ class DockerEnvironment:
         self.config = config_class(**kwargs)
         self._start_container()
 
-    def get_template_vars(self, **kwargs) -> dict[str, Any]:
+    def get_template_vars(self, **kwargs: Any) -> dict[str, Any]:
+        """Merge configuration, host platform details, and caller overrides for templates."""
         return recursive_merge(self.config.model_dump(), platform.uname()._asdict(), kwargs)
 
     def serialize(self) -> dict:
+        """Return JSON-mode environment configuration and its implementation path."""
         return {
             "info": {
                 "config": {
@@ -71,7 +73,7 @@ class DockerEnvironment:
             }
         }
 
-    def _start_container(self):
+    def _start_container(self) -> None:
         """Start the Docker container and return the container ID."""
         container_name = f"minisweagent-{uuid.uuid4().hex[:8]}"
         cmd = [
@@ -137,7 +139,7 @@ class DockerEnvironment:
         self._check_finished(output)
         return output
 
-    def _check_finished(self, output: dict):
+    def _check_finished(self, output: dict) -> None:
         """Raises Submitted if the output indicates task completion."""
         lines = output.get("output", "").lstrip().splitlines(keepends=True)
         if lines and lines[0].strip() == "COMPLETE_TASK_AND_SUBMIT_FINAL_OUTPUT" and output["returncode"] == 0:
@@ -150,12 +152,12 @@ class DockerEnvironment:
                 }
             )
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Stop and remove the Docker container."""
         if getattr(self, "container_id", None) is not None:  # if init fails early, container_id might not be set
             cmd = f"(timeout 60 {self.config.executable} stop {self.container_id} || {self.config.executable} rm -f {self.container_id}) >/dev/null 2>&1 &"
             subprocess.Popen(cmd, shell=True)
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup container when object is destroyed."""
         self.cleanup()

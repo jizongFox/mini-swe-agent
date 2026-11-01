@@ -1,6 +1,7 @@
 import logging
 import time
 from collections.abc import Callable
+from typing import Any
 
 import litellm
 
@@ -23,7 +24,8 @@ class LitellmResponseModelConfig(LitellmModelConfig):
 
 
 class LitellmResponseModel(LitellmModel):
-    def __init__(self, *, config_class: Callable = LitellmResponseModelConfig, **kwargs):
+    def __init__(self, *, config_class: Callable = LitellmResponseModelConfig, **kwargs: Any) -> None:
+        """Initialize the LiteLLM backend with Responses API configuration."""
         super().__init__(config_class=config_class, **kwargs)
 
     def _prepare_messages_for_api(self, messages: list[dict]) -> list[dict]:
@@ -37,7 +39,8 @@ class LitellmResponseModel(LitellmModel):
                 result.append({k: v for k, v in msg.items() if k != "extra"})
         return result
 
-    def _query(self, messages: list[dict[str, str]], **kwargs):
+    def _query(self, messages: list[dict[str, str]], **kwargs: Any) -> Any:
+        """Send a Responses API request; the response type is determined by LiteLLM."""
         try:
             return litellm.responses(
                 model=self.config.model_name,
@@ -49,7 +52,8 @@ class LitellmResponseModel(LitellmModel):
             e.message += " You can permanently set your API key with `mini-extra config set KEY VALUE`."
             raise e
 
-    def query(self, messages: list[dict[str, str]], **kwargs) -> dict:
+    def query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict:
+        """Return a response with actions and cost; attach billed metadata to FormatError."""
         for attempt in retry(logger=logger, abort_exceptions=self.abort_exceptions):
             with attempt:
                 response = self._query(self._prepare_messages_for_api(messages), **kwargs)
@@ -77,7 +81,8 @@ class LitellmResponseModel(LitellmModel):
         }
         return message
 
-    def _parse_actions(self, response) -> list[dict]:
+    def _parse_actions(self, response: Any) -> list[dict]:
+        """Extract bash calls from response output, raising FormatError for invalid calls."""
         return parse_toolcall_actions_response(
             getattr(response, "output", []),
             format_error_template=self.config.format_error_template,

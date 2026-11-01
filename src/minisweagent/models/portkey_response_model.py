@@ -51,7 +51,8 @@ class PortkeyResponseAPIModel:
 
     abort_exceptions: list[type[Exception]] = [KeyboardInterrupt, TypeError, ValueError]
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize the Responses API client and cost registry; require a Portkey API key."""
         self.config = PortkeyResponseAPIModelConfig(**kwargs)
         if self.config.litellm_model_registry and Path(self.config.litellm_model_registry).is_file():
             litellm.utils.register_model(json.loads(Path(self.config.litellm_model_registry).read_text()))
@@ -71,7 +72,8 @@ class PortkeyResponseAPIModel:
 
         self.client = Portkey(**client_kwargs)
 
-    def _query(self, messages: list[dict[str, str]], **kwargs):
+    def _query(self, messages: list[dict[str, str]], **kwargs: Any) -> Any:
+        """Send a tool-enabled Responses API request and return the SDK response object."""
         return self.client.responses.create(
             model=self.config.model_name,
             input=messages,
@@ -93,7 +95,8 @@ class PortkeyResponseAPIModel:
                 result.append({k: v for k, v in msg.items() if k != "extra"})
         return result
 
-    def query(self, messages: list[dict[str, str]], **kwargs) -> dict:
+    def query(self, messages: list[dict[str, str]], **kwargs: Any) -> dict:
+        """Return response output with parsed actions and cost; retain billed metadata on FormatError."""
         for attempt in retry(logger=logger, abort_exceptions=self.abort_exceptions):
             with attempt:
                 response = self._query(self._prepare_messages_for_api(messages), **kwargs)
@@ -120,7 +123,7 @@ class PortkeyResponseAPIModel:
         }
         return message
 
-    def _parse_actions(self, response) -> list[dict]:
+    def _parse_actions(self, response: Any) -> list[dict]:
         """Parse tool calls from the response API response."""
         output = response.output if hasattr(response, "output") else response.get("output", [])
         return parse_toolcall_actions_response(
@@ -129,7 +132,8 @@ class PortkeyResponseAPIModel:
             template_kwargs={"finish_reason": finish_reason_from_responses_api(response)},
         )
 
-    def _calculate_cost(self, response) -> dict[str, float]:
+    def _calculate_cost(self, response: Any) -> dict[str, float]:
+        """Estimate cost in US dollars; reject nonpositive costs unless errors are configured to be ignored."""
         try:
             cost = litellm.cost_calculator.completion_cost(
                 response, model=self.config.litellm_model_name_override or self.config.model_name
@@ -145,7 +149,8 @@ class PortkeyResponseAPIModel:
             cost = 0.0
         return {"cost": cost}
 
-    def format_message(self, **kwargs) -> dict:
+    def format_message(self, **kwargs: Any) -> dict:
+        """Build a Responses API message, wrapping text content and retaining truthy extra metadata."""
         role = kwargs.get("role", "user")
         content = kwargs.get("content", "")
         extra = kwargs.get("extra")
@@ -168,10 +173,12 @@ class PortkeyResponseAPIModel:
             multimodal_regex=self.config.multimodal_regex,
         )
 
-    def get_template_vars(self, **kwargs) -> dict:
+    def get_template_vars(self, **kwargs: Any) -> dict:
+        """Return model configuration for templates; additional keyword arguments are unused."""
         return self.config.model_dump()
 
     def serialize(self) -> dict:
+        """Return JSON-mode model configuration and its implementation path."""
         return {
             "info": {
                 "config": {

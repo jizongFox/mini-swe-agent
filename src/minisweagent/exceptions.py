@@ -1,7 +1,8 @@
 class InterruptAgentFlow(Exception):
     """Raised to interrupt the agent flow and add messages."""
 
-    def __init__(self, *messages: dict):
+    def __init__(self, *messages: dict) -> None:
+        """Retain messages for the agent loop to append when handling this interruption."""
         self.messages = messages
         super().__init__()
 
